@@ -1,13 +1,14 @@
 # My Cloud – Frontend (React + TypeScript + Vite)
 
 ## Требования
-- Node.js 18+
-- yarn или npm
+
+- `Node.js 18+`
+- `yarn или npm`
 
 ## Установка и запуск (dev)
-cd FRONT
-yarn install
-yarn dev
+`cd FRONT`
+`yarn install`
+`yarn dev`
 
 ## Возможности (в разработке)
 - [ ] Регистрация и аутентификация пользователей  
