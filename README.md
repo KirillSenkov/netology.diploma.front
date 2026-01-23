@@ -20,10 +20,22 @@
 - [ ] Административный интерфейс управления пользователями  
 
 ## Разработка (dev)
-
-Frontend запускается на Vite (порт 5173)  
-Backend — Django (порт 8000)
+Frontend — Vite (:5173)  
+Backend — Django (:8000)
 
 Для работы с CSRF в dev добавлен trusted origin:
-
 http://localhost:5173 и http://127.0.0.1:5173
+
+Используется Vite proxy:
+все запросы с префиксом `/api` перенаправляются на backend.
+
+Аутентификация основана на Django sessions + CSRF cookie.
+Axios передаёт cookie с заголовком `X-CSRFToken`.
+
+## Реализовано
+- [x] CSRF-инициализация при старте приложения
+- [x] Авторизация пользователя (login/logout)
+- [x] Redux Toolkit для auth-состояния
+- [x] Отображение навигционного меню в зависимости от авторизации
+- [x] Защищённые маршруты (ProtectedRoute)
+- [x] Proxy Vite → Django для API-запросов
