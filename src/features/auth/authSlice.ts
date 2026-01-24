@@ -1,26 +1,32 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { isAxiosError } from 'axios';
+import axios from 'axios';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import type { UserPublic } from '../../api/types';
-import { login as apiLogin, logout as apiLogout } from '../../api/auth';
+import { login as apiLogin, logout as apiLogout, register as apiRegister } from '../../api/auth';
+import type { RegisterRequest, RegisterResponse } from '../../api/auth';
 
 type AuthStatus = 'idle' | 'loading' | 'succeeded' | 'failed';
+
+type FieldErrors = Record<string, string[]>;
 
 type RejectedPayload = {
   status: number | null,
   detail: string,
+  errors?: FieldErrors,
 };
 
 type AuthState = {
   user: UserPublic | null,
   status: AuthStatus,
   error: string | null,
+  fieldErrors: FieldErrors | null,
 };
 
 const initialState: AuthState = {
   user: null,
   status: 'idle',
   error: null,
+  fieldErrors: null,
 };
 
 export const login = createAsyncThunk<
@@ -34,7 +40,7 @@ export const login = createAsyncThunk<
       const res = await apiLogin(payload);
       return res.user;
     } catch (err: unknown) {
-      if (isAxiosError(err)) {
+      if (axios.isAxiosError(err)) {
         const status = err.response?.status ?? null;
         const detailRaw = (err.response?.data as { detail?: unknown } | undefined)?.detail;
         const detail = typeof detailRaw === 'string' ? detailRaw : 'Login failed';
@@ -57,7 +63,7 @@ export const logout = createAsyncThunk<
     try {
       await apiLogout();
     } catch (err: unknown) {
-      if (isAxiosError(err)) {
+      if (axios.isAxiosError(err)) {
         const status = err.response?.status ?? null;
         const detailRaw = (err.response?.data as { detail?: unknown } | undefined)?.detail;
         const detail = typeof detailRaw === 'string' ? detailRaw : 'Logout failed';
@@ -70,46 +76,101 @@ export const logout = createAsyncThunk<
   }
 );
 
+export const register = createAsyncThunk<
+  RegisterResponse,
+  RegisterRequest,
+  { rejectValue: RejectedPayload }
+>(
+  'auth/register',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const res = await apiRegister(payload);
+      return res;
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status ?? null;
+        const data = err.response?.data as { detail?: unknown, errors?: unknown } | undefined;
+
+        const detail = typeof data?.detail === 'string' ? data.detail : 'Registration failed';
+
+        const errorsUnknown = data?.errors;
+        const errors = typeof errorsUnknown === 'object' && errorsUnknown !== null
+          ? (errorsUnknown as FieldErrors)
+          : undefined;
+
+        return rejectWithValue({ status, detail, errors });
+      }
+
+      return rejectWithValue({ status: null, detail: 'Registration failed' });
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
     resetAuthError(state) {
       state.error = null;
+      state.fieldErrors = null;
     },
   },
   extraReducers(builder) {
     builder.addCase(login.pending, (state) => {
       state.status = 'loading';
       state.error = null;
+      state.fieldErrors = null;
     });
 
     builder.addCase(login.fulfilled, (state, action: PayloadAction<UserPublic>) => {
       state.status = 'succeeded';
       state.user = action.payload;
       state.error = null;
+      state.fieldErrors = null;
     });
 
     builder.addCase(login.rejected, (state, action) => {
       state.status = 'failed';
       state.user = null;
       state.error = action.payload?.detail ?? 'Login failed';
+      state.fieldErrors = null;
     });
 
     builder.addCase(logout.pending, (state) => {
       state.status = 'loading';
       state.error = null;
+      state.fieldErrors = null;
     });
 
     builder.addCase(logout.fulfilled, (state) => {
       state.status = 'idle';
       state.user = null;
       state.error = null;
+      state.fieldErrors = null;
     });
 
     builder.addCase(logout.rejected, (state, action) => {
       state.status = 'failed';
       state.error = action.payload?.detail ?? 'Logout failed';
+      state.fieldErrors = null;
+    });
+
+    builder.addCase(register.pending, (state) => {
+      state.status = 'loading';
+      state.error = null;
+      state.fieldErrors = null;
+    });
+
+    builder.addCase(register.fulfilled, (state) => {
+      state.status = 'succeeded';
+      state.error = null;
+      state.fieldErrors = null;
+    });
+
+    builder.addCase(register.rejected, (state, action) => {
+      state.status = 'failed';
+      state.error = action.payload?.detail ?? 'Registration failed';
+      state.fieldErrors = action.payload?.errors ?? null;
     });
   },
 });

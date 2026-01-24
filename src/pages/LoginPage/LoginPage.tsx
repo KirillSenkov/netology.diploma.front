@@ -9,6 +9,10 @@ export default function LoginPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    dispatch(resetAuthError());
+  }, [dispatch]);
+
   const status = useAppSelector(selectAuthStatus);
   const error = useAppSelector(selectAuthError);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
