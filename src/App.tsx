@@ -3,6 +3,7 @@ import NavBar from './components/NavBar/NavBar';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import LoginPage from './pages/LoginPage/LoginPage';
 import RegisterPage from './pages/RegisterPage/RegisterPage';
+import FilesPage from './pages/FilesPage/FilesPage';
 
 export default function App() {
   return (
@@ -14,7 +15,7 @@ export default function App() {
         <Route path='/register' element={<RegisterPage />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path='/' element={<div>Главная</div>} />
+          <Route path='/' element={<FilesPage />} />
         </Route>
 
         <Route path='*' element={<Navigate to='/' replace />} />

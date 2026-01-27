@@ -6,14 +6,14 @@ function getCSRFToken(): string | null {
   return match ? match[1] : null;
 }
 
+export async function ensureCsrf(): Promise<void> {
+  await api.get('/auth/csrf/');
+}
+
 export const api = axios.create({
   baseURL: '/api',
   withCredentials: true,
 });
-
-export async function ensureCsrf(): Promise<void> {
-  await api.get('/auth/csrf/');
-}
 
 // CSRF substitution for POST/PATCH/DELETE
 api.interceptors.request.use((config) => {

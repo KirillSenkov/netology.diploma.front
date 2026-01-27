@@ -1,26 +1,10 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
 import type { PayloadAction } from '@reduxjs/toolkit';
+import type { RejectedPayload, AuthState } from '../types';
 import type { UserPublic } from '../../api/types';
 import { login as apiLogin, logout as apiLogout, register as apiRegister } from '../../api/auth';
 import type { RegisterRequest, RegisterResponse } from '../../api/auth';
-
-type AuthStatus = 'idle' | 'loading' | 'succeeded' | 'failed';
-
-type FieldErrors = Record<string, string[]>;
-
-type RejectedPayload = {
-  status: number | null,
-  detail: string,
-  errors?: FieldErrors,
-};
-
-type AuthState = {
-  user: UserPublic | null,
-  status: AuthStatus,
-  error: string | null,
-  fieldErrors: FieldErrors | null,
-};
 
 const initialState: AuthState = {
   user: null,
