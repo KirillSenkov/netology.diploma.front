@@ -1,4 +1,4 @@
-import { useMemo, useState , useEffect} from 'react';
+import { useMemo, useState , useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './RegisterPage.css';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';

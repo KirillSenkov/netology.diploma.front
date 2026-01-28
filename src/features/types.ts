@@ -1,7 +1,7 @@
 import type { UserPublic } from '../api/types';
 
 // common
-type  Status = 'idle' | 'loading' | 'succeeded' | 'failed';
+type Status = 'idle' | 'loading' | 'succeeded' | 'failed';
 
 type FieldErrors = Record<string, string[]>;
 
@@ -11,7 +11,7 @@ export type RejectedPayload = {
   errors?: FieldErrors,
 };
 
-//auth
+// auth
 type AuthStatus = Status;
 
 export type AuthState = {
@@ -21,8 +21,17 @@ export type AuthState = {
   fieldErrors: FieldErrors | null,
 };
 
-//files
+// files
 type FilesStatus = Status;
+
+export type FilesState = {
+  items: FileDTO[],
+  status: FilesStatus,
+  error: string | null,
+
+  uploadStatus: Status,
+  uploadError: string | null,
+};
 
 export type FileDTO = {
   id: number,
@@ -31,10 +40,4 @@ export type FileDTO = {
   comment: string | null,
   uploaded: string,
   last_downloaded: string | null,
-};
-
-export type FilesState = {
-  items: FileDTO[],
-  status: FilesStatus,
-  error: string | null,
 };

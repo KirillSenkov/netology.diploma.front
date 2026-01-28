@@ -1,15 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import './FilesPage.css';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { buildDownloadUrl } from '../../api/files';
 import { fetchFiles } from '../../features/files/filesSlice';
 import { selectFilesError, selectFilesItems, selectFilesStatus } from '../../features/files/selectors';
+import OwnerBadge from '../../components/OwnerBadge/OwnerBadge';
 
 type TipState =
   | {
       comment: string | null,
     }
   | null;
+
+type OwnerInfo = {
+  id: number;
+  username: string;
+  full_name: string;
+  email: string;
+};
+
+type LocationState = {
+  owner?: OwnerInfo;
+};
 
 function normalizeNullableText(value: string | null | undefined): string | null {
   const v = (value ?? '').trim();
@@ -56,6 +69,17 @@ function formatDate(iso: string | null): string {
 export default function FilesPage() {
   const dispatch = useAppDispatch();
 
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const state = (location.state ?? null) as LocationState | null;
+
+  const userIdRaw = searchParams.get('userId');
+  const userId = userIdRaw ? Number(userIdRaw) : null;
+
+  const isOwnList = userId === null;
+  const owner = state?.owner ?? null;
+
+
   const items = useAppSelector(selectFilesItems);
   const status = useAppSelector(selectFilesStatus);
   const error = useAppSelector(selectFilesError);
@@ -66,8 +90,15 @@ export default function FilesPage() {
   const commentRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    dispatch(fetchFiles());
-  }, [dispatch]);
+    if (userId === null) {
+      dispatch(fetchFiles());
+      return;
+    }
+
+    if (Number.isFinite(userId)) {
+      dispatch(fetchFiles({ userId }));
+    }
+  }, [dispatch, userId]);
 
   const openOrDownload = (fileId: number) => {
     const url = buildDownloadUrl(fileId);
@@ -131,9 +162,31 @@ export default function FilesPage() {
     if (hoveredAnchorRef.current) clearTip();
   };
 
+  const forwardCommentClickToAnchor = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const anchor = hoveredAnchorRef.current;
+    if (!anchor) return;
+
+    anchor.click();
+  };
+
   return (
     <div className='files'>
-      <h1 className='files__title'>Файлы</h1>
+      <div className='files__topBar'>
+        <h1 className='files__title'>Файлы</h1>
+
+        <div className='files__topRight'>
+          {isOwnList ? (
+            <button className='files__uploadBtn' type='button'>
+              Загрузить
+            </button>
+          ) : (
+            <OwnerBadge owner={owner} userId={userId} />
+          )}
+        </div>
+      </div>
 
       {status === 'failed' && error && <div className='files__error'>{error}</div>}
 
@@ -148,7 +201,11 @@ export default function FilesPage() {
           <div className='files__tipZone' role='note'>
             <div className={`filesTip ${tip ? '' : 'filesTip--empty'}`}>
               {tip?.comment && (
-                <div className='filesTip__comment' ref={commentRef}>
+                <div
+                  className='filesTip__comment'
+                  ref={commentRef}
+                  onClick={forwardCommentClickToAnchor}
+                >
                   <div className='filesTip__commentTitle'>Комментарий:</div>
                   <div className='filesTip__commentText'>{tip.comment}</div>
                 </div>
