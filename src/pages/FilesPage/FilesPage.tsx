@@ -7,8 +7,14 @@ import {
 import { useLocation, useSearchParams } from 'react-router-dom';
 import './FilesPage.css';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { buildDownloadUrl } from '../../api/files';
-import { fetchFiles, uploadFile, resetUploadState  } from '../../features/files/filesSlice';
+import { buildDownloadUrl, downloadFile } from '../../api/files';
+import saveBlob from '../../utils/DOM/saveBlob';
+import {
+  fetchFiles,
+  uploadFile,
+  resetUploadState,
+  markDownloaded
+} from '../../features/files/filesSlice';
 import {
   selectFilesError,
   selectFilesItems,
@@ -93,9 +99,12 @@ export default function FilesPage() {
   const status = useAppSelector(selectFilesStatus);
   const error = useAppSelector(selectFilesError);
 
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState<boolean>(false);
   const [uploadingFile, setUploadingFile] = useState<File | null>(null);
-  const [uploadComment, setUploadComment] = useState('');
+  const [uploadComment, setUploadComment] = useState<string>('');
+
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const uploadStatus = useAppSelector((state) => state.files.uploadStatus);
   const uploadError = useAppSelector((state) => state.files.uploadError);
@@ -118,7 +127,7 @@ export default function FilesPage() {
   }, [dispatch, userId]);
 
   const openOrDownload = (fileId: number) => {
-    const url = buildDownloadUrl(fileId);
+    const url = buildDownloadUrl(fileId, 'preview');
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
@@ -225,10 +234,41 @@ export default function FilesPage() {
   };
   // END Upload modal handlers
 
+  // Download handler
+  const handleDownload = (fileId: number, originalName: string) => {
+    if (downloadingId !== null) return;
+
+    setDownloadError(null);
+    setDownloadingId(fileId);
+
+    downloadFile(fileId)
+      .then((blob) => {
+        saveBlob(blob, originalName);
+
+        dispatch(
+          markDownloaded({
+            fileId,
+            iso: new Date().toISOString(),
+          })
+        );
+      })
+      .catch(() => {
+        setDownloadError('Не удалось скачать файл. Попробуйте ещё раз позже.');
+      })
+      .finally(() => {
+        setDownloadingId(null);
+      });
+  }
+
   return (
     <div className='files'>
       <div className='files__topBar'>
         <h1 className='files__title'>Файлы</h1>
+        {downloadError ? (
+          <div className='files__downloadError' role='alert'>
+            {downloadError}
+          </div>
+        ) : null}
 
         <div className='files__topRight'>
           {isOwnList ? (
@@ -320,7 +360,15 @@ export default function FilesPage() {
                         <div className='files__actions'>
                           <button className='files__iconBtn' type='button' title='Редактировать'>✎</button>
                           <button className='files__iconBtn' type='button' title='Публичная ссылка'>⛓</button>
-                          <button className='files__iconBtn' type='button' title='Скачать' onClick={() => openOrDownload(f.id)}>⬇</button>
+                          <button
+                            className='files__iconBtn files__iconBtn--download'
+                            type='button'
+                            title={downloadingId === f.id ? 'Скачивание…' : 'Скачать'}
+                            onClick={() => handleDownload(f.id, f.original_name)}
+                            disabled={downloadingId === f.id}
+                          >
+                            ⬇
+                          </button>
                           <button className='files__iconBtn' type='button' title='Удалить'>✕</button>
                         </div>
                       </li>

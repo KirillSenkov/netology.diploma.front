@@ -222,7 +222,23 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
+.files__iconBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .files__hint {
   padding: 18px 16px;
   color: rgba(255, 255, 255, 0.7);
+}
+
+.files__downloadError {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  border-radius: 8px;
+  background: rgba(220, 38, 38, 0.06);
+  color: #b91c1c;
+  font-size: 14px;
+  line-height: 1.25;
 }

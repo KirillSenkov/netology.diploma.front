@@ -76,6 +76,14 @@ const filesSlice = createSlice({
       state.uploadStatus = initialState.uploadStatus;
       state.uploadError = initialState.uploadError;
     },
+    markDownloaded(state, action: PayloadAction<{ fileId: number; iso: string }>) {
+      const { fileId, iso } = action.payload;
+
+      const target = state.items.find((f) => f.id === fileId);
+      if (!target) return;
+
+      target.last_downloaded = iso;
+    },
   },
   extraReducers(builder) {
     builder.addCase(fetchFiles.pending, (state) => {
@@ -114,4 +122,4 @@ const filesSlice = createSlice({
 
 export default filesSlice.reducer;
 
-export const { resetUploadState } = filesSlice.actions;
+export const { resetUploadState, markDownloaded } = filesSlice.actions;

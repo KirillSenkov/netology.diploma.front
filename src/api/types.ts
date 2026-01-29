@@ -1,5 +1,7 @@
 export type UserLevel = 'user' | 'admin' | 'senior_admin' | 'superuser'
 
+export type DownloadMode = 'download' | 'preview';
+
 export interface UserPublic {
   id: number
   username: string
