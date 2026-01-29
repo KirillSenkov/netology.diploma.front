@@ -1,17 +1,26 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import './FilesPage.css';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { buildDownloadUrl } from '../../api/files';
-import { fetchFiles } from '../../features/files/filesSlice';
-import { selectFilesError, selectFilesItems, selectFilesStatus } from '../../features/files/selectors';
+import { fetchFiles, uploadFile, resetUploadState  } from '../../features/files/filesSlice';
+import {
+  selectFilesError,
+  selectFilesItems,
+  selectFilesStatus
+ } from '../../features/files/selectors';
 import OwnerBadge from '../../components/OwnerBadge/OwnerBadge';
+import FilesUploadModal from '../../components/FilesUploadModal/FilesUploadModal';
 
 type TipState =
-  | {
+    {
       comment: string | null,
     }
-  | null;
 
 type OwnerInfo = {
   id: number;
@@ -84,7 +93,15 @@ export default function FilesPage() {
   const status = useAppSelector(selectFilesStatus);
   const error = useAppSelector(selectFilesError);
 
-  const [tip, setTip] = useState<TipState>(null);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState<File | null>(null);
+  const [uploadComment, setUploadComment] = useState('');
+
+  const uploadStatus = useAppSelector((state) => state.files.uploadStatus);
+  const uploadError = useAppSelector((state) => state.files.uploadError);
+  
+
+  const [tip, setTip] = useState<TipState>({ comment: null });
 
   const hoveredAnchorRef = useRef<HTMLElement | null>(null);
   const commentRef = useRef<HTMLDivElement | null>(null);
@@ -113,9 +130,10 @@ export default function FilesPage() {
 
   const clearTip = () => {
     hoveredAnchorRef.current = null;
-    setTip(null);
+    setTip({ comment: null });
   };
 
+  // Comment tip handlers
   const handleMouseOverCapture = (e: React.MouseEvent<HTMLDivElement>) => {
     const rawTarget = e.target;
     if (!(rawTarget instanceof Element)) return;
@@ -133,7 +151,7 @@ export default function FilesPage() {
     hoveredAnchorRef.current = anchor;
 
     const comment = normalizeNullableText(anchor.dataset.comment ?? null);
-    setTip({ comment });
+    setTip({ comment: comment });
   };
 
   const handleMouseLeave = () => {
@@ -150,7 +168,7 @@ export default function FilesPage() {
     hoveredAnchorRef.current = anchor;
 
     const comment = normalizeNullableText(anchor.dataset.comment ?? null);
-    setTip({ comment });
+    setTip({ comment: comment });
   };
 
   const handleBlurCapture = (e: React.FocusEvent<HTMLDivElement>) => {
@@ -171,6 +189,41 @@ export default function FilesPage() {
 
     anchor.click();
   };
+  // END Comment tip handlers
+
+  // Upload modal handlers
+  const openUploadModal = () => {
+    setUploadingFile(null);
+    setUploadComment('');
+    dispatch(resetUploadState());
+    setIsUploadOpen(true);
+  };
+
+  const closeUploadModal = () => {
+    setIsUploadOpen(false);
+  };
+
+  const handleUploadSubmit = () => {
+    if (!uploadingFile) return;
+
+    const comment = normalizeNullableText(uploadComment);
+
+    dispatch(
+      uploadFile({
+        file: uploadingFile,
+        comment,
+      })
+    )
+    .unwrap()
+    .then(() => {
+      setIsUploadOpen(false);
+      setUploadingFile(null);
+      setUploadComment('');
+      dispatch(resetUploadState());
+    })
+    .catch(() => {});
+  };
+  // END Upload modal handlers
 
   return (
     <div className='files'>
@@ -179,7 +232,7 @@ export default function FilesPage() {
 
         <div className='files__topRight'>
           {isOwnList ? (
-            <button className='files__uploadBtn' type='button'>
+            <button className='files__uploadBtn' type='button' onClick={openUploadModal}>
               Загрузить
             </button>
           ) : (
@@ -187,6 +240,18 @@ export default function FilesPage() {
           )}
         </div>
       </div>
+
+      <FilesUploadModal
+        isOpen={isUploadOpen}
+        file={uploadingFile}
+        comment={uploadComment}
+        status={uploadStatus}
+        error={uploadError}
+        onClose={closeUploadModal}
+        onFileChange={setUploadingFile}
+        onCommentChange={setUploadComment}
+        onSubmit={handleUploadSubmit}
+      />
 
       {status === 'failed' && error && <div className='files__error'>{error}</div>}
 
@@ -212,7 +277,7 @@ export default function FilesPage() {
               )}
 
               <div className='filesTip__label'>
-                {tip ? 'Открыть/Скачать' : tipFallback}
+                {tip ? 'Наведите на элемент списка для получения подсказки' : tipFallback}
               </div>
             </div>
           </div>

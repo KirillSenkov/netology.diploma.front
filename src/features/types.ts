@@ -1,7 +1,7 @@
 import type { UserPublic } from '../api/types';
 
 // common
-type Status = 'idle' | 'loading' | 'succeeded' | 'failed';
+export type Status = 'idle' | 'loading' | 'succeeded' | 'failed';
 
 type FieldErrors = Record<string, string[]>;
 
