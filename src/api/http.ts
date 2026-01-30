@@ -18,8 +18,9 @@ export const api = axios.create({
 // CSRF substitution for POST/PATCH/DELETE
 api.interceptors.request.use((config) => {
   const token = getCSRFToken();
+  const method = (config.method ?? 'get').toLowerCase();
 
-  if (token && config.method && ['post', 'patch', 'delete'].includes(config.method)) {
+  if (token && config.method && ['post', 'patch', 'delete'].includes(method)) {
     config.headers = config.headers ?? {};
     config.headers['X-CSRFToken'] = token;
   }

@@ -1,9 +1,14 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import type { RejectedPayload, AuthState } from '../types';
+import type { RejectedPayload, AuthState, FieldErrors  } from '../types';
 import type { UserPublic } from '../../api/types';
-import { login as apiLogin, logout as apiLogout, register as apiRegister } from '../../api/auth';
+import {
+  login as apiLogin,
+  logout as apiLogout,
+  register as apiRegister,
+  me as apiMe,
+} from '../../api/auth';
 import type { RegisterRequest, RegisterResponse } from '../../api/auth';
 
 const initialState: AuthState = {
@@ -59,6 +64,35 @@ export const logout = createAsyncThunk<
     }
   }
 );
+
+export const bootstrapAuth = createAsyncThunk<
+  UserPublic,
+  void,
+  { rejectValue: RejectedPayload }
+>(
+  'auth/bootstrapAuth',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await apiMe();
+      return res.user;
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status ?? null;
+
+        if (status === 401) {
+          return rejectWithValue({ status, detail: 'Not authenticated' });
+        }
+
+        const detailRaw = (err.response?.data as { detail?: unknown } | undefined)?.detail;
+        const detail = typeof detailRaw === 'string' ? detailRaw : 'Auth bootstrap failed';
+        return rejectWithValue({ status, detail });
+      }
+
+      return rejectWithValue({ status: null, detail: 'Auth bootstrap failed' });
+    }
+  }
+);
+
 
 export const register = createAsyncThunk<
   RegisterResponse,
@@ -136,6 +170,36 @@ const authSlice = createSlice({
     builder.addCase(logout.rejected, (state, action) => {
       state.status = 'failed';
       state.error = action.payload?.detail ?? 'Logout failed';
+      state.fieldErrors = null;
+    });
+
+    builder.addCase(bootstrapAuth.pending, (state) => {
+      state.status = 'loading';
+      state.error = null;
+      state.fieldErrors = null;
+    });
+
+    builder.addCase(bootstrapAuth.fulfilled, (state, action: PayloadAction<UserPublic>) => {
+      state.status = 'succeeded';
+      state.user = action.payload;
+      state.error = null;
+      state.fieldErrors = null;
+    });
+
+    builder.addCase(bootstrapAuth.rejected, (state, action) => {
+      const status = action.payload?.status ?? null;
+
+      if (status === 401) {
+        state.status = 'idle';
+        state.user = null;
+        state.error = null;
+        state.fieldErrors = null;
+        return;
+      }
+
+      state.status = 'failed';
+      state.user = null;
+      state.error = action.payload?.detail ?? 'Auth bootstrap failed';
       state.fieldErrors = null;
     });
 

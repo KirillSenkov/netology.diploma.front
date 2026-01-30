@@ -3,7 +3,7 @@ import type { UserPublic } from '../api/types';
 // common
 export type Status = 'idle' | 'loading' | 'succeeded' | 'failed';
 
-type FieldErrors = Record<string, string[]>;
+export type FieldErrors = Record<string, string[]>;
 
 export type RejectedPayload = {
   status: number | null,
@@ -22,7 +22,7 @@ export type AuthState = {
 };
 
 // files
-type FilesStatus = Status;
+export type FilesStatus = Status;
 
 export type FilesState = {
   items: FileDTO[],
