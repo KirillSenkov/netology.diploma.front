@@ -110,18 +110,39 @@ const filesSlice = createSlice({
     },
     updateFileMeta(
       state,
-      action: PayloadAction<{ fileId: number; original_name?: string; comment?: string | null }>
+      action: PayloadAction<{
+        fileId: number;
+        original_name?: string;
+        comment?: string | null;
+        share_url?: string | null;
+        share_created?: string | null;
+      }>
     ) {
-      const { fileId, original_name, comment } = action.payload;
+      const {
+        fileId,
+        original_name,
+        comment,
+        share_url,
+        share_created,
+      } = action.payload;
+
       const target = state.items.find((f) => f.id === fileId);
       if (!target) return;
 
-      if (typeof original_name === 'string') {
+      if (original_name !== undefined) {
         target.original_name = original_name;
       }
 
       if (comment !== undefined) {
         target.comment = comment;
+      }
+
+      if (share_url !== undefined) {
+        target.share_url = share_url;
+      }
+
+      if (share_created !== undefined) {
+        target.share_created = share_created;
       }
     },
   },

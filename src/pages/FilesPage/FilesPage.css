@@ -227,6 +227,12 @@
   cursor: not-allowed;
 }
 
+.files__iconBtn--active {
+  border-color: #6b7280;
+  box-shadow: 0 0 0 2px rgba(107, 114, 128, 0.35);
+  transform: translateY(1px);
+}
+
 .files__hint {
   padding: 18px 16px;
   color: rgba(255, 255, 255, 0.7);

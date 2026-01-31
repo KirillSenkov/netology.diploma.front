@@ -67,3 +67,10 @@ export type CommentFileResponse = {
   id: number;
   comment: string | null;
 };
+
+export type ShareResponse = {
+  id: number;
+  share_url: string | null;
+  share_created: string | null;
+  share_token: string | null;
+};

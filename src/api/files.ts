@@ -3,6 +3,7 @@ import type {
   DownloadMode,
   RenameFileResponse,
   CommentFileResponse,
+  ShareResponse,
 } from './types';
 import type { FileDTO, } from '../features/types';
 
@@ -64,3 +65,12 @@ export async function patchCommentFile(fileId: number, comment: string | null): 
   return data;
 }
 
+export async function enableShare(fileId: number): Promise<ShareResponse> {
+  const { data } = await api.post<ShareResponse>(`/files/${fileId}/share/`);
+  return data;
+}
+
+export async function disableShare(fileId: number): Promise<ShareResponse> {
+  const { data } = await api.post<ShareResponse>(`/files/${fileId}/share/disable/`);
+  return data;
+}

@@ -40,4 +40,6 @@ export type FileDTO = {
   comment: string | null,
   uploaded: string,
   last_downloaded: string | null,
+  share_url: string | null,
+  share_created: string | null,
 };

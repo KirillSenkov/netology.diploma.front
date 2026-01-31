@@ -6,7 +6,7 @@ import {
 } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import './FilesPage.css';
-import type { FileDTO } from '../../features/types';
+import type { FileDTO, Status } from '../../features/types';
 import {
   normalizeNullableText,
   normalizeCommentForApi,
@@ -20,6 +20,8 @@ import {
   downloadFile,
   patchRenameFile,
   patchCommentFile,
+  enableShare,
+  disableShare,
 } from '../../api/files';
 import saveBlob from '../../utils/DOM/saveBlob';
 import {
@@ -39,6 +41,7 @@ import OwnerBadge from '../../components/OwnerBadge/OwnerBadge';
 import FilesUploadModal from '../../components/FilesUploadModal/FilesUploadModal';
 import FilesDeleteModal from '../../components/FilesDeleteModal/FilesDeleteModal';
 import FilesEditModal from '../../components/FilesEditModal/FilesEditModal';
+import FilesShareModal from '../../components/FilesShareModal/FilesShareModal';
 
 type TipState =
     {
@@ -74,6 +77,9 @@ export default function FilesPage() {
   const status = useAppSelector(selectFilesStatus);
   const error = useAppSelector(selectFilesError);
 
+  const uploadStatus = useAppSelector((state) => state.files.uploadStatus);
+  const uploadError = useAppSelector((state) => state.files.uploadError);
+
   const [isUploadOpen, setIsUploadOpen] = useState<boolean>(false);
   const [uploadingFile, setUploadingFile] = useState<File | null>(null);
   const [uploadComment, setUploadComment] = useState<string>('');
@@ -85,16 +91,6 @@ export default function FilesPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
   const [deleteBusy, setDeleteBusy] = useState<boolean>(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  const [editingFile, setEditingFile] = useState<FileDTO | null>(null);
-  const [editName, setEditName] = useState<string>('');
-  const [editComment, setEditComment] = useState<string>('');
-  const [editBusy, setEditBusy] = useState<boolean>(false);
-  const [editErrors, setEditErrors] = useState<string[]>([]);
-
-  const uploadStatus = useAppSelector((state) => state.files.uploadStatus);
-  const uploadError = useAppSelector((state) => state.files.uploadError);
-  
 
   const [tip, setTip] = useState<TipState>({ comment: null });
 
@@ -275,10 +271,7 @@ export default function FilesPage() {
         setDeleteError(null);
       })
       .catch((e: unknown) => {
-        const msg =
-          typeof e === 'object' && e !== null && 'detail' in e && typeof (e as any).detail === 'string'
-            ? (e as any).detail
-            : 'Не удалось удалить файл. Попробуйте ещё раз позже.';
+        const msg = errorToMessage(e, 'Не удалось удалить файл. Попробуйте ещё раз позже.');
         setDeleteError(msg);
       })
       .finally(() => {
@@ -288,14 +281,20 @@ export default function FilesPage() {
   // END Delete modal handlers
 
   // Edit modal handlers
-  const handleEditOpen = (f: FileDTO) => {
+  const [editingFile, setEditingFile] = useState<FileDTO | null>(null);
+  const [editName, setEditName] = useState<string>('');
+  const [editComment, setEditComment] = useState<string>('');
+  const [editBusy, setEditBusy] = useState<boolean>(false);
+  const [editErrors, setEditErrors] = useState<string[]>([]);
+
+  const openEditModal = (f: FileDTO) => {
     setEditErrors([]);
     setEditingFile(f);
     setEditName(f.original_name ?? '');
     setEditComment(f.comment ?? '');
   };
 
-  const handleEditClose = () => {
+  const closeEditModal = () => {
     if (editBusy) return;
     setEditingFile(null);
     setEditErrors([]);
@@ -316,7 +315,7 @@ export default function FilesPage() {
 
 
     if (!nameChanged && !commentChanged) {
-      handleEditClose();
+      closeEditModal();
       return;
     }
 
@@ -366,6 +365,71 @@ export default function FilesPage() {
   };
   // END Edit modal handlers
 
+  // Share modal handlers
+  const [shareFileId, setShareFileId] = useState<number | null>(null);
+  const shareFile =
+    shareFileId === null ? null : items.find((x) => x.id === shareFileId) ?? null;
+  const [shareStatus, setShareStatus] = useState<Status>('idle');
+  const [shareError, setShareError] = useState<string | null>(null); 
+
+  const openShareModal = (Id: number) => {
+    setShareError(null);
+    setShareStatus('idle');
+    setShareFileId(Id);
+  };
+
+  const closeShareModal = () => {
+    if (shareStatus === 'loading') return;
+
+    setShareFileId(null);
+  }; 
+
+  const handleShareEnable = async () => {
+    if (!shareFileId) return;
+
+    setShareError(null);
+    setShareStatus('loading');
+
+    try {
+      const res = await enableShare(shareFileId);
+      dispatch(updateFileMeta({
+        fileId: res.id,
+        share_url: res.share_url,
+        share_created: res.share_created,
+      }));
+
+      setShareFileId(res.id);
+      setShareStatus('succeeded');
+    } catch {
+      setShareStatus('failed');
+      setShareError('Не удалось создать ссылку. Попробуйте ещё раз.');
+    }
+  };
+
+  const handleShareDisable = async () => {
+    if (!shareFileId) return;
+
+    setShareError(null);
+    setShareStatus('loading');
+
+    try {
+      const res = await disableShare(shareFileId);
+
+      dispatch(updateFileMeta({
+        fileId: res.id,
+        share_url: res.share_url ?? null,
+        share_created: res.share_created ?? null,
+      }));
+
+      setShareStatus('succeeded');
+      setShareFileId(null);
+    } catch {
+      setShareStatus('failed');
+      setShareError('Не удалось отключить ссылку. Попробуйте ещё раз.');
+    }
+  };
+  // END Share modal handlers
+
   return (
     <div className='files'>
       <div className='files__topBar'>
@@ -414,10 +478,19 @@ export default function FilesPage() {
         comment={editComment}
         isBusy={editBusy}
         errors={editErrors}
-        onClose={handleEditClose}
+        onClose={closeEditModal}
         onNameChange={setEditName}
         onCommentChange={setEditComment}
         onSubmit={handleEditSubmit}
+      />
+      
+      <FilesShareModal
+        file={shareFile}
+        status={shareStatus}
+        error={shareError}
+        onClose={closeShareModal}
+        onEnable={handleShareEnable}
+        onDisable={handleShareDisable}
       />
 
       {status === 'failed' && error && <div className='files__error'>{error}</div>}
@@ -465,60 +538,76 @@ export default function FilesPage() {
 
                 {status === 'succeeded' && (
                   <ol className='files__list'>
-                    {items.map((f, idx) => (
-                      <li className='files__row filesGrid' key={f.id}>
-                        <div className='files__num'>{idx + 1}</div>
+                    {items.map((f, idx) => {
 
-                        <button
-                          className='files__name'
-                          type='button'
-                          onClick={() => openOrDownload(f.id)}
-                          data-file-name-anchor='1'
-                          data-comment={f.comment ?? ''}
-                          title='Открыть/Скачать'
-                        >
-                          <span className='files__nameText'>{f.original_name}</span>
-                        </button>
+                      const isShared = Boolean(f.share_url);
 
-                        <div className='files__meta'>{formatBytes(f.size_bytes)}</div>
-                        <div className='files__meta'>{formatDate(f.uploaded)}</div>
-                        <div className='files__meta'>{formatDate(f.last_downloaded)}</div>
-
-                        <div className='files__actions'>
+                      return (
+                        <li className='files__row filesGrid' key={f.id}>
+                          <div className='files__num'>{idx + 1}</div>
 
                           <button
-                            className='files__iconBtn'
+                            className='files__name'
                             type='button'
-                            title='Редактировать'
-                            onClick={() => handleEditOpen(f)}
+                            onClick={() => openOrDownload(f.id)}
+                            data-file-name-anchor='1'
+                            data-comment={f.comment ?? ''}
+                            title='Открыть/Скачать'
                           >
-                            ✎
+                            <span className='files__nameText'>{f.original_name}</span>
                           </button>
 
-                          <button className='files__iconBtn' type='button' title='Публичная ссылка'>⛓</button>
+                          <div className='files__meta'>{formatBytes(f.size_bytes)}</div>
+                          <div className='files__meta'>{formatDate(f.uploaded)}</div>
+                          <div className='files__meta'>{formatDate(f.last_downloaded)}</div>
 
-                          <button
-                            className='files__iconBtn files__iconBtn--download'
-                            type='button'
-                            title={downloadingId === f.id ? 'Скачивание…' : 'Скачать'}
-                            onClick={() => handleDownload(f.id, f.original_name)}
-                            disabled={downloadingId === f.id}
-                          >
-                            ⬇
-                          </button>
+                          <div className='files__actions'>
 
-                          <button
-                            className='files__iconBtn'
-                            type='button'
-                            title='Удалить'
-                            onClick={() => openDeleteModal(f.id, f.original_name)}
-                          >
-                            ✕
-                          </button>
+                            <button
+                              className='files__iconBtn'
+                              type='button'
+                              title='Редактировать'
+                              onClick={() => openEditModal(f)}
+                            >
+                              ✎
+                            </button>
 
-                        </div>
-                      </li>
-                    ))}
+                            <button
+                              className={`files__iconBtn ${isShared ? 'files__iconBtn--active' : ''}`}
+                              type='button'
+                              title={
+                                isShared
+                                  ? `Публичная ссылка (создана: ${formatDate(f.share_created)})`
+                                  : 'Создать публичную ссылку'
+                              }
+                              onClick={() => openShareModal(f.id)}
+                            >
+                              ⛓
+                            </button>
+
+                            <button
+                              className='files__iconBtn files__iconBtn--download'
+                              type='button'
+                              title={downloadingId === f.id ? 'Скачивание…' : 'Скачать'}
+                              onClick={() => handleDownload(f.id, f.original_name)}
+                              disabled={downloadingId === f.id}
+                            >
+                              ⬇
+                            </button>
+
+                            <button
+                              className='files__iconBtn'
+                              type='button'
+                              title='Удалить'
+                              onClick={() => openDeleteModal(f.id, f.original_name)}
+                            >
+                              ✕
+                            </button>
+
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ol>
                 )}
 
