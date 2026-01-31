@@ -6,14 +6,29 @@ import {
 } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import './FilesPage.css';
+import type { FileDTO } from '../../features/types';
+import {
+  normalizeNullableText,
+  normalizeCommentForApi,
+  formatBytes,
+  formatDate,
+  errorToMessage,
+} from '../../utils/utils';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { buildDownloadUrl, downloadFile } from '../../api/files';
+import {
+  buildDownloadUrl,
+  downloadFile,
+  patchRenameFile,
+  patchCommentFile,
+} from '../../api/files';
 import saveBlob from '../../utils/DOM/saveBlob';
 import {
   fetchFiles,
   uploadFile,
+  removeFile,
   resetUploadState,
-  markDownloaded
+  markDownloaded,
+  updateFileMeta
 } from '../../features/files/filesSlice';
 import {
   selectFilesError,
@@ -22,6 +37,8 @@ import {
  } from '../../features/files/selectors';
 import OwnerBadge from '../../components/OwnerBadge/OwnerBadge';
 import FilesUploadModal from '../../components/FilesUploadModal/FilesUploadModal';
+import FilesDeleteModal from '../../components/FilesDeleteModal/FilesDeleteModal';
+import FilesEditModal from '../../components/FilesEditModal/FilesEditModal';
 
 type TipState =
     {
@@ -38,48 +55,6 @@ type OwnerInfo = {
 type LocationState = {
   owner?: OwnerInfo;
 };
-
-function normalizeNullableText(value: string | null | undefined): string | null {
-  const v = (value ?? '').trim();
-  return v === '' ? null : v;
-}
-
-/** Convert bytes to human-readable format
- * @param bytes: number - bites count
- * @returns string of formatted bytes
- * @example
- * formatBytes(1024) // returns '1 KB'
-*/
-function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes < 0) return '-';
-
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let value = bytes;
-  let i = 0;
-
-  while (value >= 1024 && i < units.length - 1) {
-    value /= 1024;
-    i += 1;
-  }
-
-  const rounded = i === 0 ? String(Math.round(value)) : value.toFixed(1);
-  return `${rounded} ${units[i]}`;
-}
-
-/** Convert ISO date string to localized date string
- * @param iso: string | null - ISO date string or null
- * @returns string - formatted date or '—'
- * @example 
- * formatDate('2023-01-01T00:00:00Z') // returns localized date string
-*/
-function formatDate(iso: string | null): string {
-  if (!iso) return '—';
-
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-
-  return d.toLocaleString();
-}
 
 export default function FilesPage() {
   const dispatch = useAppDispatch();
@@ -105,6 +80,17 @@ export default function FilesPage() {
 
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const [isDeleteOpen, setIsDeleteOpen] = useState<boolean>(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState<boolean>(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [editingFile, setEditingFile] = useState<FileDTO | null>(null);
+  const [editName, setEditName] = useState<string>('');
+  const [editComment, setEditComment] = useState<string>('');
+  const [editBusy, setEditBusy] = useState<boolean>(false);
+  const [editErrors, setEditErrors] = useState<string[]>([]);
 
   const uploadStatus = useAppSelector((state) => state.files.uploadStatus);
   const uploadError = useAppSelector((state) => state.files.uploadError);
@@ -260,6 +246,126 @@ export default function FilesPage() {
       });
   }
 
+  // Delete modal handlers
+  const openDeleteModal = (fileId: number, fileName: string) => {
+    setDeleteError(null);
+    setDeleteTarget({ id: fileId, name: fileName });
+    setIsDeleteOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleteBusy) return;
+    setIsDeleteOpen(false);
+    setDeleteTarget(null);
+    setDeleteError(null);
+  };
+  
+
+  const handleDeleteConfirm = () => {
+    if (!deleteTarget || deleteBusy) return;
+
+    setDeleteBusy(true);
+    setDeleteError(null);
+
+    dispatch(removeFile({ fileId: deleteTarget.id }))
+      .unwrap()
+      .then(() => {
+        setIsDeleteOpen(false);
+        setDeleteTarget(null);
+        setDeleteError(null);
+      })
+      .catch((e: unknown) => {
+        const msg =
+          typeof e === 'object' && e !== null && 'detail' in e && typeof (e as any).detail === 'string'
+            ? (e as any).detail
+            : 'Не удалось удалить файл. Попробуйте ещё раз позже.';
+        setDeleteError(msg);
+      })
+      .finally(() => {
+        setDeleteBusy(false);
+      });
+  };
+  // END Delete modal handlers
+
+  // Edit modal handlers
+  const handleEditOpen = (f: FileDTO) => {
+    setEditErrors([]);
+    setEditingFile(f);
+    setEditName(f.original_name ?? '');
+    setEditComment(f.comment ?? '');
+  };
+
+  const handleEditClose = () => {
+    if (editBusy) return;
+    setEditingFile(null);
+    setEditErrors([]);
+  };
+
+  const handleEditSubmit = () => {
+    const f = editingFile;
+    if (!f || editBusy) return;
+
+    const initialName = f.original_name ?? '';
+    const initialComment = f.comment ?? null;
+
+    const newName = editName.trim();
+    const newComment = normalizeCommentForApi(editComment);
+
+    const nameChanged = newName !== initialName;
+    const commentChanged = newComment !== initialComment;
+
+
+    if (!nameChanged && !commentChanged) {
+      handleEditClose();
+      return;
+    }
+
+    setEditBusy(true);
+    setEditErrors([]);
+
+    const ops: Promise<void>[] = [];
+    const errors: string[] = [];
+
+    if (nameChanged) {
+      ops.push(
+        patchRenameFile(f.id, newName)
+          .then((res) => {
+            dispatch(updateFileMeta({ fileId: f.id, original_name: res.original_name }));
+          })
+          .catch((e: unknown) => {
+            errors.push(errorToMessage(e, 'Не удалось переименовать файл.'));
+          })
+      );
+    }
+
+    if (commentChanged) {
+      ops.push(
+        patchCommentFile(f.id, newComment)
+          .then((res) => {
+            dispatch(updateFileMeta({ fileId: f.id, comment: res.comment }));
+          })
+          .catch((e: unknown) => {
+            errors.push(errorToMessage(e, 'Не удалось обновить комментарий.'));
+          })
+      );
+    }
+
+    Promise.allSettled(ops)
+      .then(() => {
+        if (errors.length > 0) {
+          setEditErrors(errors);
+          return;
+        }
+
+        setEditingFile(null);
+        setEditErrors([]);
+      })
+      .finally(() => {
+        setEditBusy(false);
+      });
+  };
+  // END Edit modal handlers
+
   return (
     <div className='files'>
       <div className='files__topBar'>
@@ -291,6 +397,27 @@ export default function FilesPage() {
         onFileChange={setUploadingFile}
         onCommentChange={setUploadComment}
         onSubmit={handleUploadSubmit}
+      />
+
+      <FilesDeleteModal
+        isOpen={isDeleteOpen}
+        fileName={deleteTarget?.name ?? ''}
+        isBusy={deleteBusy}
+        error={deleteError}
+        onClose={closeDeleteModal}
+        onConfirm={handleDeleteConfirm}
+      />
+
+      <FilesEditModal
+        isOpen={Boolean(editingFile)}
+        name={editName}
+        comment={editComment}
+        isBusy={editBusy}
+        errors={editErrors}
+        onClose={handleEditClose}
+        onNameChange={setEditName}
+        onCommentChange={setEditComment}
+        onSubmit={handleEditSubmit}
       />
 
       {status === 'failed' && error && <div className='files__error'>{error}</div>}
@@ -358,8 +485,18 @@ export default function FilesPage() {
                         <div className='files__meta'>{formatDate(f.last_downloaded)}</div>
 
                         <div className='files__actions'>
-                          <button className='files__iconBtn' type='button' title='Редактировать'>✎</button>
+
+                          <button
+                            className='files__iconBtn'
+                            type='button'
+                            title='Редактировать'
+                            onClick={() => handleEditOpen(f)}
+                          >
+                            ✎
+                          </button>
+
                           <button className='files__iconBtn' type='button' title='Публичная ссылка'>⛓</button>
+
                           <button
                             className='files__iconBtn files__iconBtn--download'
                             type='button'
@@ -369,7 +506,16 @@ export default function FilesPage() {
                           >
                             ⬇
                           </button>
-                          <button className='files__iconBtn' type='button' title='Удалить'>✕</button>
+
+                          <button
+                            className='files__iconBtn'
+                            type='button'
+                            title='Удалить'
+                            onClick={() => openDeleteModal(f.id, f.original_name)}
+                          >
+                            ✕
+                          </button>
+
                         </div>
                       </li>
                     ))}

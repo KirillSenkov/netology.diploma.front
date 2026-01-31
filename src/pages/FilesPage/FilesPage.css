@@ -62,7 +62,7 @@
   background: rgba(0, 0, 0, 0.7);
   padding: 12px 12px;
 
-  max-height: 180px;
+  max-height: 400px;
   overflow: auto;
 
   white-space: pre-wrap;
@@ -117,7 +117,7 @@
 }
 
 .files__scroll {
-  max-height: 420px;
+  max-height: 400px;
   overflow-y: auto;
   overflow-x: hidden;
 }

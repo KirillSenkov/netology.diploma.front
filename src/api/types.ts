@@ -2,6 +2,32 @@ export type UserLevel = 'user' | 'admin' | 'senior_admin' | 'superuser'
 
 export type DownloadMode = 'download' | 'preview';
 
+export type LoginRequest = {
+  username: string,
+  password: string,
+};
+
+export type LoginResponse = {
+  detail: string,
+  user: UserPublic,
+};
+
+export type MeResponse = {
+  user: UserPublic,
+};
+
+export type RegisterRequest = {
+  username: string,
+  full_name: string,
+  email: string,
+  password: string,
+};
+
+export type RegisterResponse = Pick<
+  UserPublic,
+  'id' | 'username' | 'full_name' | 'email' | 'is_admin' | 'storage_rel_path'
+>
+
 export interface UserPublic {
   id: number
   username: string
@@ -31,3 +57,13 @@ export interface ApiError {
   detail: string
   errors?: Record<string, string[]>
 }
+
+export type RenameFileResponse = {
+  id: number;
+  original_name: string;
+};
+
+export type CommentFileResponse = {
+  id: number;
+  comment: string | null;
+};

@@ -1,5 +1,9 @@
 import { api } from './http';
-import type { DownloadMode } from './types';
+import type {
+  DownloadMode,
+  RenameFileResponse,
+  CommentFileResponse,
+} from './types';
 import type { FileDTO, } from '../features/types';
 
 
@@ -7,8 +11,8 @@ import type { FileDTO, } from '../features/types';
  * @param fileId Requested file ID
  * @param mode Download mode, either 'download' or 'preview'. Default is 'download'.
  * @returns Download URL string.
- * Response of the Django-server is FileResponse(... as_attachment = True ...) 
- * if mode is 'preview'. Else, it is served as inline content.
+ * Response of the Django-server is FileResponse(... as_attachment = False ...) 
+ * if mode is 'preview' (inline). Else, it is served as attachment.
  */
 export function buildDownloadUrl(fileId: number, mode: DownloadMode = 'download'): string {
   const base = `/files/${fileId}/download/`;
@@ -44,3 +48,19 @@ export async function downloadFile(fileId: number): Promise<Blob> {
 
   return res.data as Blob;
 }
+
+export async function deleteFile(fileId: number): Promise<{ detail: string }> {
+  const { data } = await api.delete<{ detail: string }>(`/files/${fileId}/`);
+  return data;
+}
+
+export async function patchRenameFile(fileId: number, name: string): Promise<RenameFileResponse> {
+  const { data } = await api.patch<RenameFileResponse>(`/files/${fileId}/rename/`, { name });
+  return data;
+}
+
+export async function patchCommentFile(fileId: number, comment: string | null): Promise<CommentFileResponse> {
+  const { data } = await api.patch<CommentFileResponse>(`/files/${fileId}/comment/`, { comment });
+  return data;
+}
+

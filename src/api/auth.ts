@@ -1,31 +1,11 @@
 import { api } from './http';
-import type { UserPublic } from './types';
-
-export type LoginRequest = {
-  username: string,
-  password: string,
-};
-
-export type LoginResponse = {
-  detail: string,
-  user: UserPublic,
-};
-
-export type MeResponse = {
-  user: UserPublic,
-};
-
-export type RegisterRequest = {
-  username: string,
-  full_name: string,
-  email: string,
-  password: string,
-};
-
-export type RegisterResponse = Pick<
-  UserPublic,
-  'id' | 'username' | 'full_name' | 'email' | 'is_admin' | 'storage_rel_path'
->
+import type {
+  LoginRequest,
+  LoginResponse,
+  MeResponse,
+  RegisterRequest,
+  RegisterResponse,
+} from './types';
 
 export async function login(payload: LoginRequest): Promise<LoginResponse> {
   const { data } = await api.post<LoginResponse>('/auth/login/', payload);

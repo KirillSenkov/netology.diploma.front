@@ -1,7 +1,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import { getFiles, postFile } from '../../api/files';
+import { getFiles, postFile, deleteFile  } from '../../api/files';
 import type { FilesState, FileDTO, RejectedPayload } from '../types';
 
 const initialState: FilesState = {
@@ -68,6 +68,30 @@ export const uploadFile = createAsyncThunk<
   }
 );
 
+export const removeFile = createAsyncThunk<
+  { fileId: number },
+  { fileId: number },
+  { rejectValue: RejectedPayload }
+>(
+  'files/removeFile',
+  async ({ fileId }, { rejectWithValue }) => {
+    try {
+      await deleteFile(fileId);
+      return { fileId };
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status ?? null;
+        const detailRaw = (err.response?.data as { detail?: unknown } | undefined)?.detail;
+        const detail = typeof detailRaw === 'string' ? detailRaw : 'Failed to delete file';
+
+        return rejectWithValue({ status, detail });
+      }
+
+      return rejectWithValue({ status: null, detail: 'Failed to delete file' });
+    }
+  }
+);
+
 const filesSlice = createSlice({
   name: 'files',
   initialState,
@@ -83,6 +107,22 @@ const filesSlice = createSlice({
       if (!target) return;
 
       target.last_downloaded = iso;
+    },
+    updateFileMeta(
+      state,
+      action: PayloadAction<{ fileId: number; original_name?: string; comment?: string | null }>
+    ) {
+      const { fileId, original_name, comment } = action.payload;
+      const target = state.items.find((f) => f.id === fileId);
+      if (!target) return;
+
+      if (typeof original_name === 'string') {
+        target.original_name = original_name;
+      }
+
+      if (comment !== undefined) {
+        target.comment = comment;
+      }
     },
   },
   extraReducers(builder) {
@@ -117,9 +157,18 @@ const filesSlice = createSlice({
       state.uploadStatus = 'failed';
       state.uploadError = action.payload?.detail ?? 'Failed to upload file';
     });
+
+    builder.addCase(removeFile.fulfilled, (state, action: PayloadAction<{ fileId: number }>) => {
+      state.items = state.items.filter((f) => f.id !== action.payload.fileId);
+    });
+
+    builder.addCase(removeFile.rejected, (state, action) => {
+      state.error = action.payload?.detail ?? 'Failed to delete file';
+    });
+
   },
 });
 
 export default filesSlice.reducer;
 
-export const { resetUploadState, markDownloaded } = filesSlice.actions;
+export const { resetUploadState, markDownloaded, updateFileMeta } = filesSlice.actions;
