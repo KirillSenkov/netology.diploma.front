@@ -7,7 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import LoginPage from './pages/LoginPage/LoginPage';
 import RegisterPage from './pages/RegisterPage/RegisterPage';
 import FilesPage from './pages/FilesPage/FilesPage';
-
+import AdminUsersPage from './pages/AdminUsersPage/AdminUsersPage';
 
 export default function App() {
   const dispatch = useAppDispatch();
@@ -26,6 +26,7 @@ export default function App() {
 
         <Route element={<ProtectedRoute />}>
           <Route path='/' element={<FilesPage />} />
+          <Route path='/admin/users' element={<AdminUsersPage />} />
         </Route>
 
         <Route path='*' element={<Navigate to='/' replace />} />

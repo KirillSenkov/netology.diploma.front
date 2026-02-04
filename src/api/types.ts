@@ -1,4 +1,5 @@
 export type UserLevel = 'user' | 'admin' | 'senior_admin' | 'superuser'
+export type UserRank = 3 | 2 | 1 | 0;
 
 export type DownloadMode = 'download' | 'preview';
 
@@ -34,11 +35,11 @@ export interface UserPublic {
   full_name: string
   email: string
   is_admin: boolean
-  is_staff?: boolean
-  is_superuser?: boolean
-  level?: UserLevel
-  rank?: number
-  storage_rel_path?: string
+  is_staff: boolean
+  is_superuser: boolean
+  level: UserLevel
+  rank: number
+  storage_rel_path: string
 }
 
 export interface FileItem {
@@ -74,3 +75,68 @@ export type ShareResponse = {
   share_created: string | null;
   share_token: string | null;
 };
+
+export type AdminUserDTO = {
+  id: number;
+  username: string;
+  fullName: string;
+  email: string;
+
+  isAdmin: boolean;
+  isStaff: boolean;
+  isSuperuser: boolean;
+
+  level: UserLevel;
+  rank: UserRank;
+
+  storageRelPath: string;
+
+  filesCount: number;
+  totalStorageBytes: number;
+};
+
+export type AdminUserApiDTO = {
+  id: number;
+  username: string;
+  full_name: string;
+  email: string;
+
+  is_admin: boolean;
+  is_staff: boolean;
+  is_superuser: boolean;
+
+  level: UserLevel;
+  rank: number;
+
+  storage_rel_path: string;
+
+  files_count: number;
+  total_storage_bytes: number;
+};
+
+export type SetUserLevelResponse = {
+  detail: string;
+  user: {
+    id: number;
+    username: string;
+    level: UserLevel;
+    rank: UserRank;
+    isAdmin: boolean;
+    isStaff: boolean;
+    isSuperuser: boolean;
+  };
+};
+
+export type SetUserLevelApiResponse = {
+  detail: string;
+  user: {
+    id: number;
+    username: string;
+    level: UserLevel;
+    rank: UserRank;
+    is_admin: boolean;
+    is_staff: boolean;
+    is_superuser: boolean;
+  };
+};
+

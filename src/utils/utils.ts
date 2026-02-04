@@ -1,3 +1,16 @@
+import type { AdminUserDTO, UserRank, UserLevel } from '../api/types';
+
+export const ALL_LEVELS: UserLevel[] = ['user', 'admin', 'senior_admin', 'superuser'];
+export const ALL_RANKS: UserRank[] = [3, 2, 1, 0];
+
+export const LEVEL_TO_RANK = Object.fromEntries(
+  ALL_LEVELS.map((lvl, idx) => [lvl, ALL_RANKS[idx]])
+) as Record<UserLevel, UserRank>;
+
+export const RANK_TO_LEVEL = Object.fromEntries(
+  ALL_RANKS.map((lvl, idx) => [lvl, ALL_LEVELS[idx]])
+) as Record<UserRank, UserLevel>;
+
 export function buildNameWithDateTime(name: string = 'name'): string {
   const d = new Date();
 
@@ -67,4 +80,19 @@ export function errorToMessage(e: unknown, fallback: string): string {
     if (typeof detail === 'string' && detail.trim() !== '') return detail;
   }
   return fallback;
+}
+
+export function humanizeLevel(level: AdminUserDTO['level']): string {
+  switch (level) {
+    case 'user':
+      return 'User';
+    case 'admin':
+      return 'Admin';
+    case 'senior_admin':
+      return 'Senior admin';
+    case 'superuser':
+      return 'Superuser';
+    default:
+      return String(level);
+  }
 }

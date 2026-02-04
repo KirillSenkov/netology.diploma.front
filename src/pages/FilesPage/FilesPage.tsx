@@ -4,9 +4,11 @@ import {
   useMemo,
   useRef,
 } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import './FilesPage.css';
+
 import type { FileDTO, Status } from '../../features/types';
+
 import {
   normalizeNullableText,
   normalizeCommentForApi,
@@ -14,7 +16,10 @@ import {
   formatDate,
   errorToMessage,
 } from '../../utils/utils';
+import saveBlob from '../../utils/DOM/saveBlob';
+
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
+
 import {
   buildDownloadUrl,
   downloadFile,
@@ -23,7 +28,7 @@ import {
   enableShare,
   disableShare,
 } from '../../api/files';
-import saveBlob from '../../utils/DOM/saveBlob';
+
 import {
   fetchFiles,
   uploadFile,
@@ -36,43 +41,38 @@ import {
   selectFilesError,
   selectFilesItems,
   selectFilesStatus
- } from '../../features/files/selectors';
-import OwnerBadge from '../../components/OwnerBadge/OwnerBadge';
+ } from '../../features/files/selectors'; 
+import { selectTargetUser } from '../../features/adminUsers/selectors';
+
+import { setTargetUser } from '../../features/adminUsers/adminUsersSlice';
+
+import UserBadge, { type UserInfo } from '../../components/UserBadge/UserBadge';
 import FilesUploadModal from '../../components/FilesUploadModal/FilesUploadModal';
 import FilesDeleteModal from '../../components/FilesDeleteModal/FilesDeleteModal';
 import FilesEditModal from '../../components/FilesEditModal/FilesEditModal';
 import FilesShareModal from '../../components/FilesShareModal/FilesShareModal';
+import AdminUserModal from '../../components/AdminUserModal/AdminUserModal';
+import AdminUserDeleteModal from '../../components/AdminUserDeleteModal/AdminUserDeleteModal'
+
+import useAdminUserModals from '../../features/adminUsers/useAdminUserModals';
 
 type TipState =
     {
       comment: string | null,
     }
 
-type OwnerInfo = {
-  id: number;
-  username: string;
-  full_name: string;
-  email: string;
-};
-
-type LocationState = {
-  owner?: OwnerInfo;
-};
-
 export default function FilesPage() {
   const dispatch = useAppDispatch();
 
   const [searchParams] = useSearchParams();
-  const location = useLocation();
-  const state = (location.state ?? null) as LocationState | null;
 
   const userIdRaw = searchParams.get('userId');
   const userId = userIdRaw ? Number(userIdRaw) : null;
+  if (userId) dispatch(setTargetUser(userId));
 
   const isOwnList = userId === null;
-  const owner = state?.owner ?? null;
 
-
+  const targetUser = useAppSelector(selectTargetUser);
   const items = useAppSelector(selectFilesItems);
   const status = useAppSelector(selectFilesStatus);
   const error = useAppSelector(selectFilesError);
@@ -87,7 +87,6 @@ export default function FilesPage() {
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  const [isDeleteOpen, setIsDeleteOpen] = useState<boolean>(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
   const [deleteBusy, setDeleteBusy] = useState<boolean>(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -124,7 +123,7 @@ export default function FilesPage() {
     setTip({ comment: null });
   };
 
-  // Comment tip handlers
+  // Comment tip handle
   const handleMouseOverCapture = (e: React.MouseEvent<HTMLDivElement>) => {
     const rawTarget = e.target;
     if (!(rawTarget instanceof Element)) return;
@@ -180,9 +179,9 @@ export default function FilesPage() {
 
     anchor.click();
   };
-  // END Comment tip handlers
+  // END Comment tip handle
 
-  // Upload modal handlers
+  // Upload modal handle
   const openUploadModal = () => {
     setUploadingFile(null);
     setUploadComment('');
@@ -214,7 +213,7 @@ export default function FilesPage() {
     })
     .catch(() => {});
   };
-  // END Upload modal handlers
+  // END Upload modal handle
 
   // Download handler
   const handleDownload = (fileId: number, originalName: string) => {
@@ -242,16 +241,18 @@ export default function FilesPage() {
       });
   }
 
-  // Delete modal handlers
+  // Delete file modal handle
+  const [isFileDeleteOpen, setIsFileDeleteOpen] = useState(false);
+
   const openDeleteModal = (fileId: number, fileName: string) => {
     setDeleteError(null);
     setDeleteTarget({ id: fileId, name: fileName });
-    setIsDeleteOpen(true);
+    setIsFileDeleteOpen(true);
   };
 
   const closeDeleteModal = () => {
     if (deleteBusy) return;
-    setIsDeleteOpen(false);
+    setIsFileDeleteOpen(false);
     setDeleteTarget(null);
     setDeleteError(null);
   };
@@ -266,7 +267,7 @@ export default function FilesPage() {
     dispatch(removeFile({ fileId: deleteTarget.id }))
       .unwrap()
       .then(() => {
-        setIsDeleteOpen(false);
+        setIsFileDeleteOpen(false);
         setDeleteTarget(null);
         setDeleteError(null);
       })
@@ -278,9 +279,9 @@ export default function FilesPage() {
         setDeleteBusy(false);
       });
   };
-  // END Delete modal handlers
+  // END Delete modal handle
 
-  // Edit modal handlers
+  // Edit modal handle
   const [editingFile, setEditingFile] = useState<FileDTO | null>(null);
   const [editName, setEditName] = useState<string>('');
   const [editComment, setEditComment] = useState<string>('');
@@ -363,12 +364,12 @@ export default function FilesPage() {
         setEditBusy(false);
       });
   };
-  // END Edit modal handlers
+  // END Edit modal handle
 
-  // Share modal handlers
+  // Share modal handle
   const [shareFileId, setShareFileId] = useState<number | null>(null);
   const shareFile =
-    shareFileId === null ? null : items.find((x) => x.id === shareFileId) ?? null;
+  shareFileId === null ? null : items.find((x) => x.id === shareFileId) ?? null;
   const [shareStatus, setShareStatus] = useState<Status>('idle');
   const [shareError, setShareError] = useState<string | null>(null); 
 
@@ -428,7 +429,26 @@ export default function FilesPage() {
       setShareError('Не удалось отключить ссылку. Попробуйте ещё раз.');
     }
   };
-  // END Share modal handlers
+  // END Share modal handle
+
+  // Admin User and User Delete modals handle
+  const { openUserModal, userModalProps, deleteModalProps } = useAdminUserModals({
+    // мы уже в FilesPage, поэтому "Список файлов" = просто закрыть модалку
+    onGoToFiles: () => {
+      // если хук позволяет прокинуть кастомный onGoToFiles без userId — ок
+      // иначе: onGoToFiles: () => {}, а закрытие делаем внутри хука
+    },
+  });
+  // END Admin User and User Delete modals handle
+
+  const owner: UserInfo | null = targetUser ? {
+    id: targetUser.id,
+    username:
+    targetUser.username,
+    fullName:
+    targetUser.fullName,
+    email: targetUser.email,
+  } : null;
 
   return (
     <div className='files'>
@@ -442,12 +462,16 @@ export default function FilesPage() {
 
         <div className='files__topRight'>
           {isOwnList ? (
-            <button className='files__uploadBtn' type='button' onClick={openUploadModal}>
-              Загрузить
-            </button>
-          ) : (
-            <OwnerBadge owner={owner} userId={userId} />
-          )}
+              <button className='files__uploadBtn' type='button' onClick={openUploadModal}>
+                Загрузить
+              </button>
+            ) : (
+              <UserBadge
+                user={owner}
+                onUsernameClick={() => openUserModal(targetUser.id)}
+              />
+            )
+          }
         </div>
       </div>
 
@@ -464,7 +488,7 @@ export default function FilesPage() {
       />
 
       <FilesDeleteModal
-        isOpen={isDeleteOpen}
+        isOpen={isFileDeleteOpen}
         fileName={deleteTarget?.name ?? ''}
         isBusy={deleteBusy}
         error={deleteError}
@@ -492,6 +516,9 @@ export default function FilesPage() {
         onEnable={handleShareEnable}
         onDisable={handleShareDisable}
       />
+
+      <AdminUserModal {...userModalProps} />
+      <AdminUserDeleteModal {...deleteModalProps} />
 
       {status === 'failed' && error && <div className='files__error'>{error}</div>}
 

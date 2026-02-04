@@ -9,7 +9,7 @@ import {
   register as apiRegister,
   me as apiMe,
 } from '../../api/auth';
-import type { RegisterRequest, RegisterResponse } from '../../api/auth';
+import type { RegisterRequest, RegisterResponse } from '../../api/types';
 
 const initialState: AuthState = {
   user: null,
