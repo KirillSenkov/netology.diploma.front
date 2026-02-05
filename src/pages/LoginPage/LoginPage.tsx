@@ -3,7 +3,7 @@ import './LoginPage.css';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { login, resetAuthError } from '../../features/auth/authSlice';
 import { selectAuthError, selectAuthStatus, selectIsAuthenticated } from '../../features/auth/selectors';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 export default function LoginPage() {
   const dispatch = useAppDispatch();
@@ -69,6 +69,22 @@ export default function LoginPage() {
         <button className='login__button' type='submit' disabled={isLoading}>
           {isLoading ? 'Вход…' : 'Войти'}
         </button>
+
+        <div className="login__info">
+          <p className="login__infoText">
+            <strong>My Cloud</strong> — персональное облачное хранилище файлов.
+          </p>
+          <ul className="login__infoList">
+            <li>— Загружай и скачивай файлы</li>
+            <li>— Управляй комментариями и именами файлов</li>
+            <li>— Делись публичными ссылками</li>
+          </ul>
+          <p className="login__infoHint">Нет аккаунта? Перейди на страницу<span> </span>
+            <Link className='login__regLink' to='/register'>
+             регистрации
+            </Link><span> </span>и создай его за минуту.
+          </p>
+        </div>
 
         {error && <div className='login__error'>{error}</div>}
       </form>

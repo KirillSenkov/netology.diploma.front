@@ -24,6 +24,7 @@ export default function UserBadge({ user, onUsernameClick }: UserBadgeProps) {
       <UsernameTag
         className={`userBadge__username ${isClickable ? 'userBadge__usernameBtn' : ''}`}
         type={isClickable ? 'button' : undefined}
+        title='Открыть карточку пользователя (файлы, роль, удаление)'
         onClick={isClickable ? () => onUsernameClick?.(id) : undefined}
       >
         {username}

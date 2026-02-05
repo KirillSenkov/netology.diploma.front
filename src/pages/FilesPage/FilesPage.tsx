@@ -431,22 +431,14 @@ export default function FilesPage() {
   };
   // END Share modal handle
 
-  // Admin User and User Delete modals handle
   const { openUserModal, userModalProps, deleteModalProps } = useAdminUserModals({
-    // мы уже в FilesPage, поэтому "Список файлов" = просто закрыть модалку
-    onGoToFiles: () => {
-      // если хук позволяет прокинуть кастомный onGoToFiles без userId — ок
-      // иначе: onGoToFiles: () => {}, а закрытие делаем внутри хука
-    },
+    onGoToFiles: () => {},
   });
-  // END Admin User and User Delete modals handle
 
   const owner: UserInfo | null = targetUser ? {
     id: targetUser.id,
-    username:
-    targetUser.username,
-    fullName:
-    targetUser.fullName,
+    username: targetUser.username,
+    fullName: targetUser.fullName,
     email: targetUser.email,
   } : null;
 
